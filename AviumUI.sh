@@ -18,7 +18,8 @@ lunch lineage_larry-bp2a-userdebug &&
 m bacon
 
 # Build
+export WITH_GMS := false
 source build/envsetup.sh &&
 lunch lineage_larry-bp2a-userdebug &&
-m bacon -j12
+m bacon
 
