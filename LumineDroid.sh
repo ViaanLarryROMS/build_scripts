@@ -1,3 +1,7 @@
+# Nuke All Previous Things
+rm -rf Dvox
+
+
 # Initialise and Sync the Source
 mkdir LumineDroid
 cd LumineDroid
