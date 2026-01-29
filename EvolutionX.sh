@@ -1,6 +1,6 @@
 
 repo init -u https://github.com/Evolution-X/manifest -b bka --git-lfs && \
-/opt/crave/resynx.sh && \
+/opt/crave/resync.sh && \
 git clone https://github.com/ViaanLarryROMS/android_device_oneplus_larry -b lineage-23.1 device/oneplus/larry && \
 git clone https://github.com/anshedu/android_device_oneplus_sm6375-common -b lineage-23.1 device/oneplus/sm6375-common && \
 git clone https://github.com/anshedu/proprietary_vendor_oneplus_larry -b lineage-23.1 vendor/oneplus/larry && \
