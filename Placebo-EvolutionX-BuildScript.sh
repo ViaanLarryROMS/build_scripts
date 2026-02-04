@@ -1,21 +1,19 @@
-#!/bin/bash
-
-# --- 1. Repo Init & Your Specific Sync Logic ---
-repo init -u https://github.com/Evolution-X/manifest -b bq2 --git-lfs &&
+# 1. Initialize and Sync (Progressive thread fallback)
+repo init -u https://github.com/Evolution-X/manifest -b bq2 --git-lfs
 SYNC_OK=0
 repo sync -c --no-clone-bundle --optimized-fetch --prune --force-sync -j16 && SYNC_OK=1 || SYNC_OK=0
 
 if [ "$SYNC_OK" -ne 1 ]; then
-  repo sync -c --no-clone-bundle --optimized-fetch --prune --force-sync -j8 && SYNC_OK=1 || SYNC_OK=0
+  repo sync -c --no-clone-bundle --optimized-fetch --get-lfs --prune --force-sync -j8 && SYNC_OK=1 || SYNC_OK=0
 fi
 if [ "$SYNC_OK" -ne 1 ]; then
-  repo sync -c --no-clone-bundle --optimized-fetch --prune --force-sync -j4 && SYNC_OK=1 || SYNC_OK=0
+  repo sync -c --no-clone-bundle --optimized-fetch --get-lfs --prune --force-sync -j4 && SYNC_OK=1 || SYNC_OK=0
 fi
 if [ "$SYNC_OK" -ne 1 ]; then
   repo sync -j1 --fail-fast
 fi
 
-# --- 2. Clone Trees ---
+# 2. Clone Trees
 git clone https://github.com/ViaanLarryROMS/android_device_oneplus_larry -b lineage-23.2 device/oneplus/larry && \
 git clone https://github.com/Teamhackneyed/android_device_oneplus_sm6375-common -b lineage-23.2 device/oneplus/sm6375-common && \
 git clone https://github.com/Teamhackneyed/proprietary_vendor_oneplus_larry -b lineage-23.2 vendor/oneplus/larry && \
@@ -23,33 +21,29 @@ git clone https://github.com/Teamhackneyed/proprietary_vendor_oneplus_sm6375-com
 git clone https://github.com/Teamhackneyed/android_kernel_oneplus_sm6375 -b lineage-23.2 kernel/oneplus/sm6375 && \
 git clone https://github.com/LineageOS/android_hardware_oplus -b lineage-23.2 hardware/oplus
 
-# --- 3. Vanilla Build & Upload ---
+# 3. Vanilla Build
 . build/envsetup.sh
 lunch lineage_larry-bp4a-userdebug
 make installclean
 m evolution
 
-# Detect the exact zip name for Vanilla
-VANILLA_ZIP=$(find out/target/product/larry -maxdepth 1 -name "EvolutionX*.zip" | head -n 1)
-if [ -f "$VANILLA_ZIP" ]; then
-    echo "Uploading Vanilla Build: $(basename "$VANILLA_ZIP")"
-    rclone copy "$VANILLA_ZIP" gd:EvolutionX/larry/vanilla/ --progress
-fi
+# Upload Vanilla Zip only
+find out/target/product/larry/ -maxdepth 1 -name "EvolutionX*.zip" -exec rclone copy {} gd:EvolutionX/larry/vanilla/ --progress \;
 
-# --- 4. GApps Build & Upload ---
-# Swap configs: backup vanilla, move gapps.txt to larry.mk
-cd device/oneplus/larry && mv larry.mk larry_vanilla.mk && mv gapps.txt larry.mk && cd ../../..
+# 4. GApps Build (Swap lineage_larry.mk)
+cd device/oneplus/larry
+if [ -f "gapps.txt" ]; then
+    mv lineage_larry.mk lineage_larry_vanilla.mk_bak
+    mv gapps.txt lineage_larry.mk
+fi
+cd ../../..
 
 . build/envsetup.sh
 lunch lineage_larry-bp4a-userdebug
 make installclean
 m evolution
 
-# Detect the exact zip name for GApps
-GAPPS_ZIP=$(find out/target/product/larry -maxdepth 1 -name "EvolutionX*.zip" | head -n 1)
-if [ -f "$GAPPS_ZIP" ]; then
-    echo "Uploading GApps Build: $(basename "$GAPPS_ZIP")"
-    rclone copy "$GAPPS_ZIP" gd:EvolutionX/larry/gapps/ --progress
-fi
+# Upload GApps Zip only
+find out/target/product/larry/ -maxdepth 1 -name "EvolutionX*.zip" -exec rclone copy {} gd:EvolutionX/larry/gapps/ --progress \;
 
-echo "All builds complete and uploaded!"
+echo "Builds finished and Zips uploaded."
