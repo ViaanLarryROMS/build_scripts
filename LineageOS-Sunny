@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+RED="\033[1;31m"
+GRN="\033[1;32m"
+YLW="\033[1;33m"
+BLU="\033[1;34m"
+RST="\033[0m"
+
+log(){ printf "${BLU}[%s]${RST} %s\n" "$(date +%T)" "$1"; }
+ok(){ printf "${GRN}[OK]${RST} %s\n" "$1"; }
+die(){ printf "${RED}[ERR]${RST} %s\n" "$1"; exit 1; }
+
+trap 'die "Script died at line $LINENO"' ERR
+
+log "Initializing ultra-overengineered ROM build system..."
+
+declare -A REPOS
+
+REPOS["vendor/gapps"]="baklava|https://gitlab.com/MindTheGapps/vendor_gapps"
+REPOS["device/xiaomi/sunny"]="LineageOS-Dolby-GAPPS|https://github.com/ViaanLarryROMS/android_device_xiaomi_sunny"
+REPOS["device/xiaomi/sunny-kernel"]="sixteen-qpr2|https://github.com/PixelOS-Devices/android_device_xiaomi_sunny-kernel"
+REPOS["vendor/xiaomi/sunny"]="sixteen-qpr2|https://gitlab.com/NoPrincessHere/proprietary_vendor_xiaomi_sunny.git"
+REPOS["hardware/xiaomi"]="lineage-23.2|https://github.com/LineageOS/android_hardware_xiaomi"
+REPOS["packages/apps/KProfiles"]="main|https://github.com/KProfiles/android_packages_apps_KProfiles"
+REPOS["packages/apps/DisplayFeatures"]="main|https://github.com/cyberknight777/android_packages_apps_DisplayFeatures"
+REPOS["hardware/dolby"]="main|https://github.com/TRIDEV099/hardware_dolby"
+
+clone_repo(){
+
+    local path="$1"
+    local entry="${REPOS[$path]}"
+
+    IFS="|" read -r branch url <<< "$entry"
+
+    mkdir -p "$(dirname "$path")"
+
+    log "Cloning ${YLW}$url${RST} -> ${YLW}$path${RST}"
+
+    if [[ -d "$path/.git" ]]; then
+        log "Repo exists, syncing..."
+        (
+            cd "$path"
+            git pull --rebase
+        )
+    else
+        git clone -b "$branch" "$url" "$path"
+    fi
+
+    ok "$path ready"
+}
+
+log "Starting repository acquisition loop..."
+
+for repo in "${!REPOS[@]}"; do
+    clone_repo "$repo"
+done
+
+ok "All repositories synced"
+
+log "Preparing Android build environment..."
+
+if [[ ! -f build/envsetup.sh ]]; then
+    die "envsetup.sh not found. Did repo sync finish?"
+fi
+
+log "Sourcing envsetup..."
+source build/envsetup.sh
+
+log "Starting lunch/brunch pipeline..."
+
+DEVICE="sunny"
+
+if command -v brunch &> /dev/null; then
+    log "Executing brunch ${YLW}$DEVICE${RST}"
+    brunch "$DEVICE"
+else
+    die "brunch command not available after envsetup"
+fi
+
+ok "Build pipeline completed"
+
+printf "\n${GRN}████ ROM BUILD FINISHED ████${RST}\n"
